@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=faset
+GenericName=3D STL Viewer
+Comment=Ultra-fast native OpenGL 3.3 Core STL viewer
+Exec=/home/toshi/.local/bin/faset %f
+TryExec=/home/toshi/.local/bin/faset
+Icon=faset
+Terminal=false
+StartupNotify=true
+StartupWMClass=faset
+Categories=Graphics;3DGraphics;Engineering;
+Keywords=stl;3d;cad;mesh;viewer;
+MimeType=model/stl;application/sla;application/vnd.ms-pki.stl;
