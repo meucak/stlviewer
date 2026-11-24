@@ -363,7 +363,7 @@ void Hud::render(GlFuncs& gl,
             hit_rects_.push_back(drop_r);
             bool hov = drop_r.contains(hover_x_, hover_y_);
             push_rect(cx, cy, cw, ch, 14.0f, hov ? btn_hover : glass_bg, glass_bdr);
-            std::string t1 = "faset  ·  Hardware STL Viewer";
+            std::string t1 = "stlviewer  ·  Hardware STL Viewer";
             std::string t2 = "Drop an .stl file here or click / press O to open";
             push_text(cx + (cw - static_cast<float>(measure_utf8_px(t1))) * 0.5f, cy + 28.0f, t1, text_pri);
             push_text(cx + (cw - static_cast<float>(measure_utf8_px(t2))) * 0.5f, cy + 56.0f, t2, text_sec);
@@ -526,7 +526,7 @@ void Hud::render(GlFuncs& gl,
             float hx = std::floor((static_cast<float>(win_w) - hw) * 0.5f);
             float hy = std::floor((static_cast<float>(win_h) - hh) * 0.5f - 16.0f);
             push_rect(hx, hy, hw, hh, 14.0f, glass_bg, glass_bdr);
-            push_text(hx + 22.0f, hy + 18.0f, "faset — Controls & Shortcuts", text_pri);
+            push_text(hx + 22.0f, hy + 18.0f, "stlviewer — Controls & Shortcuts", text_pri);
 
             const char* left_lines[] = {
                 "Left Drag        Orbit",

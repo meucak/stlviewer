@@ -271,8 +271,8 @@ bool X11GLWindow::open(const std::string& title, int width, int height, bool vsy
     // Class hints
     XClassHint* ch = XAllocClassHint();
     if (ch) {
-        char rn[] = "faset";
-        char rc[] = "Faset";
+        char rn[] = "stlviewer";
+        char rc[] = "StlViewer";
         ch->res_name = rn;
         ch->res_class = rc;
         XSetClassHint(dpy_, win_, ch);
@@ -295,7 +295,7 @@ bool X11GLWindow::open(const std::string& title, int width, int height, bool vsy
     xdnd_selection_ = XInternAtom(dpy_, "XdndSelection", False);
     xdnd_type_list_ = XInternAtom(dpy_, "XdndTypeList", False);
     xdnd_action_copy_ = XInternAtom(dpy_, "XdndActionCopy", False);
-    drop_prop_ = XInternAtom(dpy_, "FASET_XDND_DATA", False);
+    drop_prop_ = XInternAtom(dpy_, "STLVIEWER_XDND_DATA", False);
     text_uri_list_ = XInternAtom(dpy_, "text/uri-list", False);
 
     Atom xdnd_version = 5;
@@ -398,20 +398,20 @@ int X11GLWindow::connection_fd() const {
 int run_viewer(const std::string& initial_stl_path) {
     X11GLWindow win;
     std::string err;
-    if (!win.open("faset", 1280, 720, true, err)) {
-        std::fprintf(stderr, "faset error: %s\n", err.c_str());
+    if (!win.open("stlviewer", 1280, 720, true, err)) {
+        std::fprintf(stderr, "stlviewer error: %s\n", err.c_str());
         return 1;
     }
 
     GlFuncs& gl = win.gl();
     Renderer renderer;
     if (!renderer.init(gl, win.width(), win.height(), err)) {
-        std::fprintf(stderr, "faset renderer init error: %s\n", err.c_str());
+        std::fprintf(stderr, "stlviewer renderer init error: %s\n", err.c_str());
         return 1;
     }
     Hud hud;
     if (!hud.init(gl, err)) {
-        std::fprintf(stderr, "faset HUD init error: %s\n", err.c_str());
+        std::fprintf(stderr, "stlviewer HUD init error: %s\n", err.c_str());
         renderer.destroy(gl);
         return 1;
     }
@@ -458,7 +458,7 @@ int run_viewer(const std::string& initial_stl_path) {
         }
         update_sibling_info(mesh.path);
         watcher.watch_file(mesh.path);
-        win.set_title("faset — " + base_name_of(mesh.path));
+        win.set_title("stlviewer — " + base_name_of(mesh.path));
         renderer.reset_accumulation();
     };
 
@@ -1004,7 +1004,7 @@ int run_self_test_gl(const std::string& stl_path) {
 
     X11GLWindow win;
     std::string err;
-    if (!win.open("faset self-test-gl", 1024, 640, false, err)) {
+    if (!win.open("stlviewer self-test-gl", 1024, 640, false, err)) {
         std::fprintf(stderr, "[self-test-gl] Window/GLX init failed: %s\n", err.c_str());
         return 1;
     }
@@ -1099,7 +1099,7 @@ int run_screenshot(const ScreenshotOpts& opts) {
 
     X11GLWindow win;
     std::string err;
-    if (!win.open("faset screenshot", opts.width, opts.height, false, err)) {
+    if (!win.open("stlviewer screenshot", opts.width, opts.height, false, err)) {
         std::fprintf(stderr, "[screenshot] Window/GLX init failed: %s\n", err.c_str());
         return 1;
     }

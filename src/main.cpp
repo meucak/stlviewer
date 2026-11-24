@@ -14,17 +14,17 @@ namespace {
 
 void print_usage() {
     std::printf(
-        "faset 1.0.0 — Bare-Metal Hardware STL Viewer (C++20 / X11-GLX / OpenGL 3.3 Core)\n\n"
+        "stlviewer 1.0.0 — Bare-Metal Hardware STL Viewer (C++20 / X11-GLX / OpenGL 3.3 Core)\n\n"
         "Usage:\n"
-        "  faset [file.stl]                 Launch interactive 3D viewer\n"
-        "  faset --info <file.stl>          Print STL geometry, memory & load stats\n"
-        "  faset --bench <file.stl> [--runs N]  Benchmark mmap+parse+quantize+cull\n"
-        "  faset --self-test-gl <file.stl>  Verify real OpenGL 3.3 Core rendering & picking\n"
-        "  faset --screenshot <out.ppm> <file.stl> [options]\n"
+        "  stlviewer [file.stl]                 Launch interactive 3D viewer\n"
+        "  stlviewer --info <file.stl>          Print STL geometry, memory & load stats\n"
+        "  stlviewer --bench <file.stl> [--runs N]  Benchmark mmap+parse+quantize+cull\n"
+        "  stlviewer --self-test-gl <file.stl>  Verify real OpenGL 3.3 Core rendering & picking\n"
+        "  stlviewer --screenshot <out.ppm> <file.stl> [options]\n"
         "      --width W --height H --theme dark|light --matcap 0..3\n"
         "      --slice --wire --xray --twosided --no-hud\n"
-        "  faset --version                  Print version\n"
-        "  faset --help                     Print this help\n");
+        "  stlviewer --version                  Print version\n"
+        "  stlviewer --help                     Print this help\n");
 }
 
 int cmd_info(const std::string& path) {
@@ -115,7 +115,7 @@ int main(int argc, char** argv) {
     for (int i = 1; i < argc; ++i) {
         const char* a = argv[i];
         if (std::strcmp(a, "--version") == 0 || std::strcmp(a, "-v") == 0) {
-            std::printf("faset 1.0.0 (C++20 / X11-GLX / OpenGL 3.3 Core)\n");
+            std::printf("stlviewer 1.0.0 (C++20 / X11-GLX / OpenGL 3.3 Core)\n");
             return 0;
         } else if (std::strcmp(a, "--help") == 0 || std::strcmp(a, "-h") == 0) {
             print_usage();
@@ -159,28 +159,28 @@ int main(int argc, char** argv) {
 
     if (mode == "info") {
         if (file_arg.empty()) {
-            std::fprintf(stderr, "Usage: faset --info <file.stl>\n");
+            std::fprintf(stderr, "Usage: stlviewer --info <file.stl>\n");
             return 1;
         }
         return cmd_info(file_arg);
     }
     if (mode == "bench") {
         if (file_arg.empty()) {
-            std::fprintf(stderr, "Usage: faset --bench <file.stl> [--runs N]\n");
+            std::fprintf(stderr, "Usage: stlviewer --bench <file.stl> [--runs N]\n");
             return 1;
         }
         return cmd_bench(file_arg, bench_runs);
     }
     if (mode == "self-test-gl") {
         if (file_arg.empty()) {
-            std::fprintf(stderr, "Usage: faset --self-test-gl <file.stl>\n");
+            std::fprintf(stderr, "Usage: stlviewer --self-test-gl <file.stl>\n");
             return 1;
         }
         return faset::run_self_test_gl(file_arg);
     }
     if (mode == "screenshot") {
         if (out_ppm.empty() || file_arg.empty()) {
-            std::fprintf(stderr, "Usage: faset --screenshot <out.ppm> <file.stl>\n");
+            std::fprintf(stderr, "Usage: stlviewer --screenshot <out.ppm> <file.stl>\n");
             return 1;
         }
         shot.out_ppm = out_ppm;

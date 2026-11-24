@@ -1,4 +1,4 @@
-# faset
+# stlviewer
 
 Bare-metal, hardware-accelerated native 3D STL viewer (`C++20` / `X11-GLX` / `OpenGL 3.3 Core`), engineered for minimal memory footprint, instant load times, and 0% idle CPU/GPU usage on NVIDIA GT218/GT218M (Mesa Nouveau) and modern Linux desktops.
 
@@ -18,13 +18,13 @@ Bare-metal, hardware-accelerated native 3D STL viewer (`C++20` / `X11-GLX` / `Op
 ./build.sh
 ```
 
-Produces `/home/kasa/apps/faset/build/faset` and runs `ctest --output-on-failure`.
+Produces `/home/kasa/apps/stlviewer/build/stlviewer` and runs `ctest --output-on-failure`.
 
 ## Web Edition (WebGL2 + Zero-Idle)
 
 Inspect STL models directly in any modern desktop or mobile browser with **0% idle CPU/GPU usage**, **off-main-thread Web Worker STL parsing**, **8-byte UNORM16 GPU vertex quantization**, **Eco / Crisp** power scaling, and zero external npm/CDN dependencies (~172 KB total).
 
-- **Live Web App (GitHub Pages):** <https://meucak.github.io/faset/>
+- **Live Web App (GitHub Pages):** <https://meucak.github.io/stlviewer/>
 - **Local / LAN / Tailscale Docker (`nginx:alpine`, port `8096`):**
 
 ```bash
@@ -41,11 +41,11 @@ node --test tests/web/test_faset_web.mjs
 ## CLI Usage
 
 ```bash
-faset [file.stl]                          # Interactive viewer (or empty drop-zone)
-faset --info <file.stl>                   # Print geometry, bbox, volume, load ms & VRAM
-faset --bench <file.stl> [--runs 5]       # Benchmark mmap/parse/quantize/cull throughput
-faset --self-test-gl <file.stl>           # Live OpenGL 3.3 Core + shader + depth-pick test
-faset --screenshot <out.ppm> <file.stl>   # Render 16x SSAA frame to PPM
+stlviewer [file.stl]                          # Interactive viewer (or empty drop-zone)
+stlviewer --info <file.stl>                   # Print geometry, bbox, volume, load ms & VRAM
+stlviewer --bench <file.stl> [--runs 5]       # Benchmark mmap/parse/quantize/cull throughput
+stlviewer --self-test-gl <file.stl>           # Live OpenGL 3.3 Core + shader + depth-pick test
+stlviewer --screenshot <out.ppm> <file.stl>   # Render 16x SSAA frame to PPM
 ```
 
 ## Controls

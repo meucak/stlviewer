@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-IMAGE_NAME="faset-builder:trixie"
+IMAGE_NAME="stlviewer-builder:trixie"
 
 if ! docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
     echo "[build.sh] Building Docker image $IMAGE_NAME..."

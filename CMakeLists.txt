@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(faset LANGUAGES CXX)
+project(stlviewer LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -34,9 +34,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/matcap.cpp")
 endif()
 
 if(FASET_CORE_SOURCES)
-    add_library(faset_core STATIC ${FASET_CORE_SOURCES})
-    target_include_directories(faset_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
-    target_link_libraries(faset_core PUBLIC pthread m)
+    add_library(stlviewer_core STATIC ${FASET_CORE_SOURCES})
+    target_include_directories(stlviewer_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
+    target_link_libraries(stlviewer_core PUBLIC pthread m)
 endif()
 
 set(FASET_TEST_SOURCES tests/test_main.cpp)
@@ -53,24 +53,24 @@ foreach(tf
     endif()
 endforeach()
 
-add_executable(faset_tests ${FASET_TEST_SOURCES})
-target_include_directories(faset_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src" "${CMAKE_CURRENT_SOURCE_DIR}/tests")
-if(TARGET faset_core)
-    target_link_libraries(faset_tests PRIVATE faset_core)
+add_executable(stlviewer_tests ${FASET_TEST_SOURCES})
+target_include_directories(stlviewer_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src" "${CMAKE_CURRENT_SOURCE_DIR}/tests")
+if(TARGET stlviewer_core)
+    target_link_libraries(stlviewer_tests PRIVATE stlviewer_core)
 endif()
-target_link_libraries(faset_tests PRIVATE pthread m)
+target_link_libraries(stlviewer_tests PRIVATE pthread m)
 
 enable_testing()
-add_test(NAME faset_unit_tests COMMAND faset_tests)
+add_test(NAME stlviewer_unit_tests COMMAND stlviewer_tests)
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp")
-    add_executable(faset
+    add_executable(stlviewer
         src/main.cpp
         src/gl_loader.cpp
         src/renderer.cpp
         src/hud.cpp
         src/platform_x11.cpp
     )
-    target_include_directories(faset PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
-    target_link_libraries(faset PRIVATE faset_core X11 dl pthread m)
+    target_include_directories(stlviewer PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+    target_link_libraries(stlviewer PRIVATE stlviewer_core X11 dl pthread m)
 endif()
