@@ -333,6 +333,8 @@ function appendDiamond3d(out, p, r, col) {
 export class Renderer {
   constructor(canvas) {
     this.canvas = canvas;
+    this.backend = 'WebGL2';
+    this.needsCpuVertices = false;
     this.gl = null;
     this.width = 1;
     this.height = 1;
@@ -365,7 +367,7 @@ export class Renderer {
   }
 
   init(width, height, dpr) {
-    const gl = this.canvas.getContext('webgl2', {
+    let gl = this.canvas.getContext('webgl2', {
       antialias: false,
       alpha: false,
       depth: false,
@@ -373,6 +375,9 @@ export class Renderer {
       powerPreference: 'low-power',
       preserveDrawingBuffer: false,
     });
+    if (!gl) {
+      gl = this.canvas.getContext('webgl2');
+    }
     if (!gl) {
       throw new Error('WebGL2 is not supported by this browser/GPU.');
     }
@@ -453,9 +458,19 @@ export class Renderer {
       const tex = gl.createTexture();
       const pixels = generateMatcapRgba8(i);
       gl.bindTexture(gl.TEXTURE_2D, tex);
+      while (gl.getError() !== gl.NO_ERROR) {}
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.SRGB8_ALPHA8, MATCAP_SIZE, MATCAP_SIZE, 0, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-      gl.generateMipmap(gl.TEXTURE_2D);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+      if (gl.getError() === gl.NO_ERROR) {
+        gl.generateMipmap(gl.TEXTURE_2D);
+        if (gl.getError() === gl.NO_ERROR) {
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+        } else {
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        }
+      } else {
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, MATCAP_SIZE, MATCAP_SIZE, 0, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      }
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
@@ -482,7 +497,7 @@ export class Renderer {
     const gl = this.gl;
     this._destroyFbos();
 
-    const tryBuild = (internalFmt, type) => {
+    const tryBuild = (internalFmt, type, depthFmt) => {
       this.sceneColor = gl.createTexture();
       gl.bindTexture(gl.TEXTURE_2D, this.sceneColor);
       gl.texImage2D(gl.TEXTURE_2D, 0, internalFmt, w, h, 0, gl.RGBA, type, null);
@@ -493,7 +508,7 @@ export class Renderer {
 
       this.sceneDepthRb = gl.createRenderbuffer();
       gl.bindRenderbuffer(gl.RENDERBUFFER, this.sceneDepthRb);
-      gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, w, h);
+      gl.renderbufferStorage(gl.RENDERBUFFER, depthFmt, w, h);
 
       this.sceneFbo = gl.createFramebuffer();
       gl.bindFramebuffer(gl.FRAMEBUFFER, this.sceneFbo);
@@ -520,12 +535,17 @@ export class Renderer {
       return ok1 && ok2;
     };
 
-    if ((this.extFloat || this.extHalf) && tryBuild(gl.RGBA16F, gl.HALF_FLOAT)) {
+    if ((this.extFloat || this.extHalf) && tryBuild(gl.RGBA16F, gl.HALF_FLOAT, gl.DEPTH_COMPONENT24)) {
       this.fp16Fbo = true;
       return;
     }
     this._destroyFbos();
-    if (tryBuild(gl.RGBA8, gl.UNSIGNED_BYTE)) {
+    if (tryBuild(gl.RGBA8, gl.UNSIGNED_BYTE, gl.DEPTH_COMPONENT24)) {
+      this.fp16Fbo = false;
+      return;
+    }
+    this._destroyFbos();
+    if (tryBuild(gl.RGBA8, gl.UNSIGNED_BYTE, gl.DEPTH_COMPONENT16)) {
       this.fp16Fbo = false;
       return;
     }

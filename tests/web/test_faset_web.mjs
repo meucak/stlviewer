@@ -7,6 +7,8 @@ import { CHUNK_TRIS, parseStlBuffer } from '../../docs/js/stl_parser.js';
 import { cullChunks } from '../../docs/js/culling.js';
 import { MATCAP_SIZE, MatcapKind, generateMatcapRgba8 } from '../../docs/js/matcap.js';
 import { DEMO_MODELS, buildBinaryStl, generateDemoStl } from '../../docs/js/demo_models.js';
+import { pickMeshCpu } from '../../docs/js/picking.js';
+import { RendererCanvas2D } from '../../docs/js/renderer_canvas2d.js';
 
 function approx(a, b, eps = 1e-4) {
   assert.ok(Math.abs(a - b) <= eps, `Expected ${a} ≈ ${b} (eps=${eps})`);
@@ -197,4 +199,106 @@ test('demo_models: all 3 procedural CAD models produce valid watertight-sized ST
     assert.ok(parsed.volumeMm3 > 100);
     assert.ok(Number.isFinite(parsed.bboxExtent.x) && parsed.bboxExtent.x > 0);
   }
+});
+
+test('picking: CPU ray-triangle picker handles persp, ortho, miss & slice clipping', () => {
+  const cube = makeCubeTriangles(-10, -10, -10, 10, 10, 10);
+  const mesh = parseStlBuffer(buildBinaryStl(cube), 'cube.stl');
+  const cam = new Camera();
+  cam.frameBounds(mesh.bboxMin, mesh.bboxMax, 800, 600, false);
+  cam.setPreset(ViewPreset.Front, false);
+
+  const baseState = {
+    twoSided: false,
+    sliceEnabled: false,
+    sliceAxis: 1,
+    sliceFlip: false,
+    sliceT: 0.5,
+    xray: false,
+  };
+
+  // Center pixel hits front face y = -10
+  const hitPersp = pickMeshCpu(400, 300, 800, 600, 1, cam, mesh, baseState);
+  assert.ok(hitPersp);
+  approx(hitPersp.y, -10, 1e-2);
+
+  // Corner pixel misses cube
+  const miss = pickMeshCpu(5, 5, 800, 600, 1, cam, mesh, baseState);
+  assert.equal(miss, null);
+
+  // Ortho pick hits front face y = -10
+  cam.setOrtho(true);
+  const hitOrtho = pickMeshCpu(400, 300, 800, 600, 1, cam, mesh, baseState);
+  assert.ok(hitOrtho);
+  approx(hitOrtho.y, -10, 1e-2);
+
+  // Slice along Y at 0.5 (y <= 0 kept, y > 0 clipped OR y >= 0 kept):
+  // sliceFlip=false -> sign=-1, keeps y <= 0, so front face y=-10 stays visible;
+  // sliceFlip=true -> sign=+1, keeps y >= 0, so front face y=-10 is clipped and back interior y=+10 is hit!
+  const slicedState = { ...baseState, sliceEnabled: true, sliceFlip: true, sliceT: 0.5 };
+  const hitSliced = pickMeshCpu(400, 300, 800, 600, 1, cam, mesh, slicedState);
+  assert.ok(hitSliced);
+  approx(hitSliced.y, 10, 1e-2);
+});
+
+test('renderer_canvas2d: renders flange-housing across modes and returns axisTipsCss + pick', () => {
+  let fillCount = 0;
+  let strokeCount = 0;
+  const mockCtx = {
+    fillStyle: '',
+    strokeStyle: '',
+    lineWidth: 1,
+    lineJoin: 'round',
+    createLinearGradient: () => ({ addColorStop() {} }),
+    fillRect() {},
+    beginPath() {},
+    moveTo() {},
+    lineTo() {},
+    closePath() {},
+    fill() { fillCount++; },
+    stroke() { strokeCount++; },
+  };
+  const mockCanvas = { getContext: (kind) => (kind === '2d' ? mockCtx : null) };
+
+  const r = new RendererCanvas2D(mockCanvas);
+  assert.equal(r.backend, 'Canvas 2D');
+  assert.equal(r.needsCpuVertices, true);
+  r.init(800, 600, 1);
+
+  const mesh = parseStlBuffer(generateDemoStl('flange-housing'), 'flange-housing.stl');
+  r.uploadMesh(mesh);
+
+  const cam = new Camera();
+  cam.frameBounds(mesh.bboxMin, mesh.bboxMax, 800, 600, false);
+
+  for (let mc = 0; mc < MatcapKind.Count; mc++) {
+    r.resetAccumulation();
+    const state = {
+      darkTheme: mc % 2 === 0,
+      matcap: mc,
+      wireframe: mc === 1,
+      xray: mc === 2,
+      twoSided: mc === 3,
+      showGrid: true,
+      showHud: true,
+      sliceEnabled: mc === 3,
+      sliceAxis: 2,
+      sliceFlip: false,
+      sliceT: 0.5,
+      measureHasA: true,
+      measureHasB: true,
+      measureA: { x: 0, y: 0, z: 0 },
+      measureB: { x: 10, y: 0, z: 0 },
+    };
+    const res = r.renderFrame(mesh, cam, state);
+    assert.ok(res.axisTipsCss && res.axisTipsCss.length === 3);
+    assert.ok(Number.isFinite(res.axisTipsCss[0].x));
+  }
+  assert.ok(fillCount > 100);
+  assert.ok(strokeCount > 100);
+
+  const hit = r.pickWorldPoint(400, 300, cam, mesh, {
+    twoSided: false, sliceEnabled: false, sliceAxis: 2, sliceFlip: false, sliceT: 0.5, xray: false,
+  });
+  assert.ok(hit && Number.isFinite(hit.x));
 });

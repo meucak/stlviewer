@@ -53,6 +53,8 @@ html, body {
 #gl-canvas {
   display: block;
   width: 100vw;
+  height: 100%;
+  height: 100vh;
   height: 100dvh;
   touch-action: none;
   cursor: grab;

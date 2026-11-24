@@ -4,6 +4,8 @@ import { MatcapKind, matcapName } from './matcap.js';
 import { parseStlBuffer } from './stl_parser.js';
 import { DEMO_MODELS, generateDemoStl } from './demo_models.js';
 import { Renderer } from './renderer.js';
+import { RendererWebGL1 } from './renderer_webgl1.js';
+import { RendererCanvas2D } from './renderer_canvas2d.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -50,13 +52,14 @@ let lastStats = null;
 let cam = new Camera();
 let renderer = null;
 let worker = null;
+let workerReady = false;
 let parseSeq = 0;
 let rafId = 0;
 let lastAnimTime = 0;
 let statusTimer = 0;
 let transientStatus = '';
 
-const canvas = $('gl-canvas');
+let canvas = $('gl-canvas');
 
 function getEffectiveDpr() {
   const raw = window.devicePixelRatio || 1;
@@ -70,13 +73,23 @@ function getTargetSamples() {
 function initWorker() {
   try {
     worker = new Worker('./js/stl_worker.js', { type: 'module' });
+    worker.addEventListener('message', (ev) => {
+      if (ev.data && ev.data.type === 'ready') {
+        workerReady = true;
+      }
+    });
+    worker.addEventListener('error', () => {
+      workerReady = false;
+      worker = null;
+    });
   } catch {
+    workerReady = false;
     worker = null;
   }
 }
 
 function parseStlAsync(buffer, name) {
-  if (!worker) {
+  if (!worker || !workerReady) {
     return Promise.resolve(parseStlBuffer(buffer, name));
   }
   const id = ++parseSeq;
@@ -90,6 +103,7 @@ function parseStlAsync(buffer, name) {
     const onErr = () => {
       worker.removeEventListener('message', onMsg);
       worker.removeEventListener('error', onErr);
+      workerReady = false;
       resolve(parseStlBuffer(buffer, name));
     };
     worker.addEventListener('message', onMsg);
@@ -128,9 +142,19 @@ function updateStatusPill() {
   const settled = renderer && !renderer.needsMoreSamples() && !cam.isAnimating();
   dot.classList.toggle('settled', !!settled);
   if (settled) {
-    txt.textContent = `Idle · ${samples}× SSAA`;
+    if (renderer.backend === 'WebGL1') {
+      txt.textContent = 'WebGL1 · Idle';
+    } else if (renderer.backend === 'Canvas 2D') {
+      txt.textContent = '2D · Idle';
+    } else {
+      txt.textContent = `Idle · ${samples}× SSAA`;
+    }
   } else {
-    txt.textContent = `SSAA ${samples}/${target}`;
+    if (renderer && renderer.backend !== 'WebGL2') {
+      txt.textContent = `${renderer.backend} · Active`;
+    } else {
+      txt.textContent = `SSAA ${samples}/${target}`;
+    }
   }
 }
 
@@ -221,8 +245,9 @@ function updateToolbarUi() {
 
   if (state.showHelp && renderer) {
     const chunkInfo = lastStats ? `${lastStats.visibleChunks}/${lastStats.totalChunks} chunks (${lastStats.drawCalls} draws)` : '—';
+    const fboTag = renderer.backend === 'WebGL2' ? (renderer.fp16Fbo ? 'RGBA16F' : 'RGBA8') : renderer.backend;
     $('engine-diag').textContent =
-      `8 B/v UNORM16 · ${chunkInfo} · ${renderer.fp16Fbo ? 'RGBA16F' : 'RGBA8'} · ${renderer.glInfo}`;
+      `8 B/v UNORM16 · ${chunkInfo} · ${fboTag} · ${renderer.glInfo}`;
   }
 
   updateInfoPill();
@@ -343,8 +368,10 @@ async function applyParsedBuffer(buffer, name, modelKey) {
   }
 
   renderer.uploadMesh(parsed);
-  // Release CPU-side vertex copy immediately after GPU VBO upload to minimize RAM
-  parsed.vertices = null;
+  if (!renderer.needsCpuVertices) {
+    // Release CPU-side vertex copy immediately after GPU VBO upload to minimize RAM
+    parsed.vertices = null;
+  }
   currentMesh = parsed;
   state.activeModelKey = modelKey;
   state.measureHasA = false;
@@ -862,19 +889,40 @@ function wireControls() {
   });
 }
 
+function initBestRenderer() {
+  const tiers = [Renderer, RendererWebGL1, RendererCanvas2D];
+  const dpr = getEffectiveDpr();
+  const w = Math.max(1, Math.round(window.innerWidth * dpr));
+  const h = Math.max(1, Math.round(window.innerHeight * dpr));
+  let lastErr = null;
+
+  for (let i = 0; i < tiers.length; i++) {
+    if (i > 0) {
+      // Fresh canvas clone avoids HTML5 context-type lock after a failed getContext()
+      const fresh = canvas.cloneNode(false);
+      canvas.replaceWith(fresh);
+      canvas = fresh;
+    }
+    canvas.width = w;
+    canvas.height = h;
+    try {
+      const candidate = new tiers[i](canvas);
+      candidate.init(w, h, dpr);
+      candidate.setTargetSamples(getTargetSamples());
+      return candidate;
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr || new Error('No graphics renderer could be initialized.');
+}
+
 function boot() {
   initWorker();
   try {
-    renderer = new Renderer(canvas);
-    const dpr = getEffectiveDpr();
-    const w = Math.max(1, Math.round(window.innerWidth * dpr));
-    const h = Math.max(1, Math.round(window.innerHeight * dpr));
-    canvas.width = w;
-    canvas.height = h;
-    renderer.init(w, h, dpr);
-    renderer.setTargetSamples(getTargetSamples());
+    renderer = initBestRenderer();
   } catch (err) {
-    $('error-msg').textContent = err?.message || 'WebGL2 initialization failed.';
+    $('error-msg').textContent = err?.message || 'Graphics renderer initialization failed.';
     $('error-banner').classList.remove('hidden');
     return;
   }
@@ -885,11 +933,15 @@ function boot() {
       cancelAnimationFrame(rafId);
       rafId = 0;
     }
-    showStatus('WebGL context paused', 0);
+    showStatus('Graphics context paused', 0);
   });
 
   wireControls();
   updateToolbarUi();
+
+  if (renderer.backend !== 'WebGL2') {
+    showStatus(`Compatibility mode: ${renderer.backend}`, 2600);
+  }
 
   const params = new URLSearchParams(window.location.search);
   const urlParam = params.get('url');

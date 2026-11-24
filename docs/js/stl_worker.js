@@ -1,5 +1,7 @@
 import { parseStlBuffer } from './stl_parser.js';
 
+self.postMessage({ type: 'ready' });
+
 self.onmessage = (event) => {
   const { id, buffer, name } = event.data;
   try {
