@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark light" />
+  <title>faset — Hardware STL Viewer</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body class="theme-dark">
+  <canvas id="gl-canvas" aria-label="3D STL Viewport"></canvas>
+
+  <div id="hud-layer">
+    <!-- Top-left: Model selector + Geometry Telemetry Pill -->
+    <div class="pill-wrap top-left">
+      <div id="info-pill" class="glass-pill info-pill">
+        <button id="btn-model-menu" class="model-btn" type="button" aria-haspopup="listbox" aria-expanded="false" title="Switch demo or loaded STL ([ / ])">
+          <img src="./favicon.svg" alt="" class="brand-mark" width="16" height="16" />
+          <span id="info-name" class="info-name">flange-housing.stl</span>
+          <svg class="chev" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+            <path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <span class="sep" aria-hidden="true"></span>
+        <span id="info-metrics" class="info-metrics mono">Loading…</span>
+      </div>
+
+      <div id="model-popover" class="glass-popover model-popover hidden" role="listbox" aria-label="STL Models">
+        <div class="pop-section-label">Built-in CAD Samples</div>
+        <div id="demo-list" class="pop-list"></div>
+        <div id="loaded-section" class="hidden">
+          <div class="pop-divider"></div>
+          <div class="pop-section-label">Loaded Files</div>
+          <div id="loaded-list" class="pop-list"></div>
+        </div>
+        <div class="pop-divider"></div>
+        <button id="btn-pop-open" class="pop-item pop-action" type="button">Open local .stl file… <kbd>O</kbd></button>
+      </div>
+    </div>
+
+    <!-- Top-right: Power Mode & Zero-Idle Render Status -->
+    <div class="pill-wrap top-right">
+      <div id="status-pill" class="glass-pill status-pill">
+        <span id="idle-dot" class="idle-dot" aria-hidden="true"></span>
+        <span id="status-text" class="mono">Ready</span>
+        <span class="sep" aria-hidden="true"></span>
+        <button id="btn-eco" class="chip-btn" type="button" aria-pressed="false" title="Toggle Eco / Crisp render mode (E)">Eco</button>
+      </div>
+    </div>
+
+    <!-- Bottom-center: Contextual Sub-Pills + Main Floating Toolbar -->
+    <div class="bottom-dock">
+      <!-- Measure Sub-Pill -->
+      <div id="measure-pill" class="glass-pill sub-pill hidden" role="region" aria-label="3D Measurement">
+        <span id="measure-text" class="mono">Click surface for Point A</span>
+        <button id="btn-measure-clear" class="chip-btn" type="button">Clear</button>
+      </div>
+
+      <!-- Slice Sub-Pill -->
+      <div id="slice-pill" class="glass-pill sub-pill hidden" role="region" aria-label="Cross-section Slice">
+        <div class="seg-group" role="group" aria-label="Slice Axis">
+          <button id="btn-slice-x" class="seg-btn" type="button" data-axis="0">X</button>
+          <button id="btn-slice-y" class="seg-btn" type="button" data-axis="1">Y</button>
+          <button id="btn-slice-z" class="seg-btn active" type="button" data-axis="2">Z</button>
+        </div>
+        <button id="btn-slice-flip" class="chip-btn" type="button" aria-pressed="false" title="Flip clip side (I)">Flip</button>
+        <input id="slice-slider" class="slice-slider" type="range" min="0" max="1" step="0.002" value="0.5" aria-label="Slice position" />
+        <span id="slice-mm" class="mono slice-mm">0.0 mm</span>
+      </div>
+
+      <!-- Main Toolbar -->
+      <div id="toolbar-pill" class="glass-pill toolbar-pill" role="toolbar" aria-label="Viewer Controls">
+        <button id="btn-open" class="tool-btn" type="button" title="Open STL file (O)">
+          <span class="key-hint">O</span><span>Open</span>
+        </button>
+        <button id="btn-matcap" class="tool-btn" type="button" title="Cycle MatCap shader (M)">
+          <span class="key-hint">M</span><span id="lbl-matcap">Clay</span>
+        </button>
+        <button id="btn-wire" class="tool-btn" type="button" aria-pressed="false" title="Toggle Wireframe overlay (W)">
+          <span class="key-hint">W</span><span>Wire</span>
+        </button>
+        <button id="btn-slice" class="tool-btn" type="button" aria-pressed="false" title="Toggle Cross-section Slice (S)">
+          <span class="key-hint">S</span><span>Slice</span>
+        </button>
+        <button id="btn-measure" class="tool-btn" type="button" aria-pressed="false" title="3D Point-to-Point Measure (D)">
+          <span class="key-hint">D</span><span>Meas</span>
+        </button>
+        <button id="btn-xray" class="tool-btn" type="button" aria-pressed="false" title="Toggle X-Ray Fresnel (X)">
+          <span class="key-hint">X</span><span>XRay</span>
+        </button>
+        <button id="btn-twosided" class="tool-btn" type="button" aria-pressed="false" title="Toggle Two-Sided faces (B)">
+          <span class="key-hint">B</span><span>2Side</span>
+        </button>
+        <button id="btn-theme" class="tool-btn" type="button" title="Toggle Dark / Light theme (T)">
+          <span class="key-hint">T</span><span id="lbl-theme">Dark</span>
+        </button>
+        <button id="btn-reset" class="tool-btn" type="button" title="Reset camera & fit model (R / F)">
+          <span class="key-hint">R</span><span>Reset</span>
+        </button>
+        <button id="btn-help" class="tool-btn icon-only" type="button" aria-pressed="false" title="Shortcuts & Engine Info (?, F1)" aria-label="Help">
+          <span>?</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Bottom-right: 3D Axis Triad Labels + CAD View Popover Trigger -->
+    <button id="triad-btn" class="triad-hitbox" type="button" aria-haspopup="true" aria-expanded="false" title="CAD Views & Camera Options">
+      <span id="axis-lbl-x" class="axis-lbl axis-x">X</span>
+      <span id="axis-lbl-y" class="axis-lbl axis-y">Y</span>
+      <span id="axis-lbl-z" class="axis-lbl axis-z">Z</span>
+    </button>
+
+    <div id="view-popover" class="glass-popover view-popover hidden" role="menu" aria-label="Camera Views">
+      <div class="pop-section-label">CAD Views</div>
+      <div class="view-grid">
+        <button class="pop-item" type="button" data-view="iso">Iso <kbd>0</kbd></button>
+        <button class="pop-item" type="button" data-view="front">Front <kbd>1</kbd></button>
+        <button class="pop-item" type="button" data-view="back">Back <kbd>2</kbd></button>
+        <button class="pop-item" type="button" data-view="right">Right <kbd>3</kbd></button>
+        <button class="pop-item" type="button" data-view="left">Left <kbd>4</kbd></button>
+        <button class="pop-item" type="button" data-view="top">Top <kbd>5</kbd></button>
+        <button class="pop-item" type="button" data-view="bottom">Bottom <kbd>6</kbd></button>
+      </div>
+      <div class="pop-divider"></div>
+      <button id="btn-ortho" class="pop-item" type="button" aria-pressed="false">Orthographic <kbd>P</kbd></button>
+      <button id="btn-yup" class="pop-item" type="button" aria-pressed="false">Y-Up Axis <kbd>U</kbd></button>
+      <button id="btn-grid" class="pop-item active" type="button" aria-pressed="true">Ground Grid <kbd>G</kbd></button>
+      <button id="btn-hide-hud" class="pop-item" type="button">Hide HUD <kbd>H</kbd></button>
+    </div>
+  </div>
+
+  <!-- Minimal Restore HUD Pill when HUD is hidden -->
+  <button id="btn-restore-hud" class="glass-pill restore-hud hidden" type="button" title="Show HUD (H)">Show HUD (H)</button>
+
+  <!-- Help & Diagnostics Modal -->
+  <div id="help-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="help-title">
+    <div class="glass-popover help-card">
+      <div class="help-header">
+        <div class="help-title-wrap">
+          <img src="./favicon.svg" alt="" width="20" height="20" />
+          <h2 id="help-title">faset WebGL2 — Controls &amp; Architecture</h2>
+        </div>
+        <button id="btn-help-close" class="chip-btn" type="button" aria-label="Close help">Close</button>
+      </div>
+      <div class="help-cols">
+        <div class="help-col">
+          <h3>Navigation</h3>
+          <dl class="kbd-list">
+            <div><dt>Left / 1-Finger</dt><dd>Orbit</dd></div>
+            <div><dt>Shift+Left / Right / Mid</dt><dd>Pan</dd></div>
+            <div><dt>Scroll / Pinch</dt><dd>Cursor Zoom</dd></div>
+            <div><dt>Double-Click / Tap</dt><dd>Set Pivot / Reset</dd></div>
+            <div><dt>1–6 / 0</dt><dd>CAD / Iso Views</dd></div>
+            <div><dt>P / U / G</dt><dd>Ortho / Y-Up / Grid</dd></div>
+          </dl>
+        </div>
+        <div class="help-col">
+          <h3>Inspection &amp; Power</h3>
+          <dl class="kbd-list">
+            <div><dt>M</dt><dd>Cycle Studio MatCap</dd></div>
+            <div><dt>W / X / B</dt><dd>Wire / XRay / 2-Side</dd></div>
+            <div><dt>S / Tab / I</dt><dd>Slice / Axis / Flip</dd></div>
+            <div><dt>D / Esc</dt><dd>Measure / Cancel</dd></div>
+            <div><dt>O / [ ]</dt><dd>Open / Prev-Next STL</dd></div>
+            <div><dt>E / T / H</dt><dd>Eco / Theme / Hide HUD</dd></div>
+          </dl>
+        </div>
+      </div>
+      <div class="help-footer">
+        <span id="engine-diag" class="mono">8 B/v UNORM16 · 0% Idle CPU/GPU</span>
+        <a href="https://github.com/meucak/faset" target="_blank" rel="noopener noreferrer">GitHub</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Drag & Drop Overlay -->
+  <div id="drop-overlay" class="drop-overlay hidden" aria-hidden="true">
+    <div class="glass-popover drop-card">
+      <strong>Drop .stl file(s) to inspect</strong>
+      <span>Binary &amp; ASCII STL · Parsed off-thread · 8 bytes/vertex UNORM16</span>
+    </div>
+  </div>
+
+  <!-- WebGL2 Error Fallback -->
+  <div id="error-banner" class="modal-backdrop hidden" role="alert">
+    <div class="glass-popover help-card">
+      <h2>WebGL2 Unavailable</h2>
+      <p id="error-msg">Your browser or graphics driver could not initialize a WebGL2 context.</p>
+    </div>
+  </div>
+
+  <input id="file-input" type="file" accept=".stl,.STL" multiple hidden />
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>

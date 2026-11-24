@@ -1,0 +1,16 @@
+services:
+  faset-web:
+    image: nginx:alpine
+    container_name: faset-web
+    restart: unless-stopped
+    ports:
+      - "8096:80"
+    volumes:
+      - ./docs:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    mem_limit: 32m
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/ || exit 1"]
+      interval: 30s
+      timeout: 3s
+      retries: 3

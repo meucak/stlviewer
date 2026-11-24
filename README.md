@@ -20,6 +20,24 @@ Bare-metal, hardware-accelerated native 3D STL viewer (`C++20` / `X11-GLX` / `Op
 
 Produces `/home/kasa/apps/faset/build/faset` and runs `ctest --output-on-failure`.
 
+## Web Edition (WebGL2 + Zero-Idle)
+
+Inspect STL models directly in any modern desktop or mobile browser with **0% idle CPU/GPU usage**, **off-main-thread Web Worker STL parsing**, **8-byte UNORM16 GPU vertex quantization**, **Eco / Crisp** power scaling, and zero external npm/CDN dependencies (~172 KB total).
+
+- **Live Web App (GitHub Pages):** <https://meucak.github.io/faset/>
+- **Local / LAN / Tailscale Docker (`nginx:alpine`, port `8096`):**
+
+```bash
+docker compose up -d
+# Open http://localhost:8096  (or ?url=<path-to-stl>)
+```
+
+Run the WebGL2 core module tests:
+
+```bash
+node --test tests/web/test_faset_web.mjs
+```
+
 ## CLI Usage
 
 ```bash
